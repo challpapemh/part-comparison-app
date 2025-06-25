@@ -17,17 +17,28 @@ def compare_part_lists_by_description(stock_df, comparison_df, threshold=0.6):
                 highest_ratio = ratio
         if best_match is not None and stock_row['Part Number'] != best_match['Part Number']:
             matches.append({
-                'Part Description_Stock': stock_row['Part Description'],
-                'Part Number_Stock': stock_row['Part Number'],
-                'Part Description_Comparison': best_match['Part Description'],
-                'Part Number_Comparison': best_match['Part Number']
+                'Original_Remove': stock_row['Part Description'],
+                'Part Number_Remove': stock_row['Part Number'],
+                'New Parts_Add': best_match['Part Description'],
+                'Part Number_Add': best_match['Part Number']
             })
     return pd.DataFrame(matches).drop_duplicates()
 
-st.title("Part Number Comparison Tool")
+st.set_page_config(page_title="Part Number Comparison", layout="centered")
+st.title("🔍 Part Number Comparison Tool")
 
-stock_file = st.file_uploader("Upload Stock File (Excel or CSV)", type=['csv', 'xls', 'xlsx'])
-comparison_file = st.file_uploader("Upload Comparison File (Excel or CSV)", type=['csv', 'xls', 'xlsx'])
+st.markdown("""
+This app compares two part lists based on description similarity.
+- Upload the **original part list** and the **new part list** (CSV or Excel).
+- Files must contain **Part Number** and **Part Description** columns.
+- Adjust the similarity sensitivity using the slider below.
+- The app will highlight parts that appear different but are similarly described.
+""")
+
+similarity_threshold = st.slider("Match Sensitivity (Higher = Stricter)", min_value=0.0, max_value=1.0, value=0.6, step=0.05)
+
+stock_file = st.file_uploader("📂 Upload Original Parts List", type=['csv', 'xls', 'xlsx'])
+comparison_file = st.file_uploader("📂 Upload New Parts List", type=['csv', 'xls', 'xlsx'])
 
 if stock_file and comparison_file:
     try:
@@ -41,18 +52,19 @@ if stock_file and comparison_file:
         else:
             comparison_df = pd.read_csv(comparison_file, encoding='latin1')
 
-        result_df = compare_part_lists_by_description(stock_df, comparison_df)
+        result_df = compare_part_lists_by_description(stock_df, comparison_df, threshold=similarity_threshold)
 
-        st.subheader("Differences in Part Numbers (Based on Descriptions)")
-        st.dataframe(result_df)
+        st.subheader("🧾 Differences in Part Numbers (Based on Descriptions)")
+        st.write(f"🔎 **{len(result_df)} differences found** with similarity threshold of `{similarity_threshold}`.")
+        st.dataframe(result_df, use_container_width=True)
 
         csv = result_df.to_csv(index=False).encode('utf-8')
         st.download_button(
-            label="Download Comparison Results as CSV",
+            label="💾 Download Results as CSV",
             data=csv,
             file_name='part_number_differences.csv',
             mime='text/csv'
         )
 
     except Exception as e:
-        st.error(f"Error processing files: {e}")
+        st.error(f"❌ Error processing files: {e}")
